@@ -43,6 +43,9 @@ public class OpenApiYamlFile
 		// set default authentication for the collection to use API key
 		setDefaultAuthenticationToApiKey();
 
+		// update title to add version
+		updateCollectionTitleWithVersion();
+
 		// write changes to file
 		writeChangesToFile();
 	}
@@ -83,6 +86,26 @@ public class OpenApiYamlFile
 		{
 			this.lines.addAll(COLLECTION_LEVEL_AUTHENTICATION_API_KEY);
 		}
+	}
+
+	private void updateCollectionTitleWithVersion()
+	{
+
+		String versionLine = this.lines.stream()
+		                               .filter(line -> line.startsWith("  version:"))
+		                               .collect(Collectors.toList())
+		                               .get(0);
+
+		Integer version = Integer.valueOf(versionLine.split("'")[1]);
+
+		String titleOriginal = this.lines.stream()
+		                                 .filter(line -> line.startsWith("  title:"))
+		                                 .collect(Collectors.toList())
+		                                 .get(0);
+
+		String titleUpdated = titleOriginal + " [v" + version + "]";
+
+		this.lines.set(this.lines.indexOf(titleOriginal), titleUpdated);
 	}
 
 	private void writeChangesToFile()
