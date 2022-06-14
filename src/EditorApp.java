@@ -1,3 +1,7 @@
+/**
+ * This class contains the main method to initiate execution of the application. Includes basic validation checks
+ * against input arguments.
+ */
 public class EditorApp
 {
 	public static void main(String[] args)
@@ -35,6 +39,7 @@ public class EditorApp
 		catch (Exception ex)
 		{
 			ex.printStackTrace();
+			throw ex;
 		}
 	}
 }

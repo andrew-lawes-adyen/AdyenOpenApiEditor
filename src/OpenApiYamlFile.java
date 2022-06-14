@@ -4,30 +4,53 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * This class represents a single YAML file and contains the logic required to amend it.
+ */
 public class OpenApiYamlFile
 {
-	// static variables
+	// region STATIC VARIABLES
+
+	// list of strings representing lines associated with request-level authentication
 	public static final List<String> REQUEST_LEVEL_AUTHENTICATION = List.of(
 			"      security:",
 			"      - BasicAuth: []",
 			"      - ApiKeyAuth: []"
 	);
 
+	// list of strings representing lines associated with collection-level authentication
 	public static final List<String> COLLECTION_LEVEL_AUTHENTICATION_API_KEY = List.of(
 			"security:",
 			"  - ApiKeyAuth: []"
 	);
 
-	// instance variables
+	// endregion
+
+
+	// region INSTANCE VARIABLES
+
+	// path to YAML file
 	private final Path pathToFile;
+
+	// list of lines within YAML files
 	private List<String> lines;
 
+	// endregion
+
+	/**
+	 * Public constructor.
+	 *
+	 * @param pathToFile Path to YAML file
+	 */
 	public OpenApiYamlFile(Path pathToFile)
 	{
-
+		// store path to file
 		this.pathToFile = pathToFile;
 	}
 
+	/**
+	 * Method to amend file.
+	 */
 	public void amend()
 			throws Exception
 	{
@@ -50,19 +73,25 @@ public class OpenApiYamlFile
 		writeChangesToFile();
 	}
 
+	/**
+	 * Method to add variable to collection URL by inserting a variable into the string.
+	 */
 	private void addVariableToBaseUrl()
 	{
 		// add variable environment to url property
 		// enables use of environment variables to change environment
 		try
 		{
+			// identify line containing URL for this collection
 			String urlOriginal = this.lines.stream()
 			                               .filter(line -> line.startsWith("- url:"))
 			                               .collect(Collectors.toList())
 			                               .get(0);
 
+			// replace hard-coded value with variable
 			String urlUpdated = urlOriginal.replace("test", "{{env}}");
 
+			// overwrite original line
 			this.lines.set(this.lines.indexOf(urlOriginal), urlUpdated);
 		}
 		catch (Exception ex)
@@ -71,6 +100,9 @@ public class OpenApiYamlFile
 		}
 	}
 
+	/**
+	 * Method to remove request-level authentication by deleting lines where this is specified.
+	 */
 	private void removeRequestLevelAuthentication()
 	{
 		// delete request-specific authentication details
@@ -78,6 +110,9 @@ public class OpenApiYamlFile
 		this.lines.removeAll(REQUEST_LEVEL_AUTHENTICATION);
 	}
 
+	/**
+	 * Method to set collection-level authentication to API key as default by inserting lines.
+	 */
 	private void setDefaultAuthenticationToApiKey()
 	{
 		// add additional lines to bottom of file (if not found)
@@ -88,30 +123,41 @@ public class OpenApiYamlFile
 		}
 	}
 
+	/**
+	 * Method to append version of collection to title in square brackets.
+	 */
 	private void updateCollectionTitleWithVersion()
 	{
-
+		// get line containing collection version
 		String versionLine = this.lines.stream()
 		                               .filter(line -> line.startsWith("  version:"))
 		                               .collect(Collectors.toList())
 		                               .get(0);
 
-		Integer version = Integer.valueOf(versionLine.split("'")[1]);
+		// get version number from line
+		int version = Integer.parseInt(versionLine.split("'")[1]);
 
+		// get line containing collection title
 		String titleOriginal = this.lines.stream()
 		                                 .filter(line -> line.startsWith("  title:"))
 		                                 .collect(Collectors.toList())
 		                                 .get(0);
 
+		// create updated line by appending version number to collection title within square brackets
 		String titleUpdated = titleOriginal + " [v" + version + "]";
 
+		// overwrite line containing collection title
 		this.lines.set(this.lines.indexOf(titleOriginal), titleUpdated);
 	}
 
+	/**
+	 * Method to write changes to the file once completed.
+	 */
 	private void writeChangesToFile()
 			throws Exception
 	{
 
+		// create PrintWriter object with automatic closure
 		try (PrintWriter fileWriter = new PrintWriter(Files.newBufferedWriter(this.pathToFile)))
 		{
 			// erase file content

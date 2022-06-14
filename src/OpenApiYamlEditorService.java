@@ -4,20 +4,40 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * This class contains logic to perform edits to all OpenAPI YAML files identified within a given directory.
+ */
 public class OpenApiYamlEditorService
 {
-	// instance variables
-	private Path pathToYamlDirectory;
+	// region INSTANCE VARIABLES
 
-	private boolean copyLatestVersions;
-	private Path pathToLatestVersionsDirectory;
+	// path to directory containing YAML files
+	private final Path pathToYamlDirectory;
 
+	// set of paths to all .yaml files identified in directory
 	private Set<Path> yamlFilePaths;
 
+	// flag to determine if latest versions of API collections should be copied to a target directory
+	private final boolean copyLatestVersions;
+
+	// target directory to copy latest versions of API collections to
+	private final Path pathToLatestVersionsDirectory;
+
+	// endregion
+
+	/**
+	 * Public constructor. Includes validation to check that directory paths are valid and throws exception if any
+	 * issues are found.
+	 * fails.
+	 *
+	 * @param yamlDirectory           String containing path to directory containing .yaml files
+	 * @param latestVersionsDirectory String containing path to directory used to store latest API collections
+	 *                                (optional - may be null)
+	 */
 	public OpenApiYamlEditorService(String yamlDirectory, String latestVersionsDirectory)
 			throws Exception
 	{
-		// validate mandatory input
+		// validate mandatory input for path to directory containing .yaml files
 		try
 		{
 			this.pathToYamlDirectory = validateAndGetPathToDirectory(yamlDirectory);
@@ -25,10 +45,10 @@ public class OpenApiYamlEditorService
 		catch (Exception ex)
 		{
 			throw new Exception(
-					"Path to YAML directory was invalid - please recheck. Value supplied was " + yamlDirectory);
+					"Path to directory containing YAML files was invalid - please recheck. Value supplied was " + yamlDirectory);
 		}
 
-		// validate optional input
+		// validate optional input for target directory to copy latest API collections to (if supplied)
 		if (latestVersionsDirectory != null && !latestVersionsDirectory.isEmpty())
 		{
 			try
@@ -48,26 +68,16 @@ public class OpenApiYamlEditorService
 		}
 	}
 
-	private Path validateAndGetPathToDirectory(String directory)
-			throws Exception
-	{
-
-		Path pathToDirectory = Path.of(directory);
-
-		if (!Files.isDirectory(pathToDirectory))
-		{
-			throw new Exception();
-		}
-
-		return pathToDirectory;
-	}
-
+	/**
+	 * Method to initiate and control overall flow of execution.
+	 */
 	public void run()
 			throws Exception
 	{
 		// get set of paths to YAML files in directory (includes validation checks)
 		getPathsToYamlFiles();
 
+		// iterate over set of paths
 		for (Path yamlFilePath : yamlFilePaths)
 		{
 			// create YAML file object from next path
@@ -85,11 +95,31 @@ public class OpenApiYamlEditorService
 	}
 
 	/**
+	 * Method to validate a string containing a directory and return a path object for that directory.
+	 *
+	 * @param directory String containing directory
+	 * @return Path to directory
+	 */
+	private Path validateAndGetPathToDirectory(String directory)
+			throws Exception
+	{
+
+		// create path object for supplied string - throws exception automatically if this doesn't map to a valid
+		// filesystem object
+		Path pathToDirectory = Path.of(directory);
+
+		// confirm this path objects references a directory
+		if (!Files.isDirectory(pathToDirectory))
+		{
+			throw new Exception();
+		}
+
+		return pathToDirectory;
+	}
+
+	/**
 	 * Method to get a set of paths to all YAML files identified within a directory. Throws exception if no YAML files
 	 * are found.
-	 *
-	 * @return Set of paths to all YAML files identified in specified directory
-	 * @throws Exception
 	 */
 	private void getPathsToYamlFiles()
 			throws Exception
@@ -107,6 +137,9 @@ public class OpenApiYamlEditorService
 		}
 	}
 
+	/**
+	 * Method to identify latest version of each API collection and copy just these files to a specified directory.
+	 */
 	private void copyLatestFiles()
 			throws Exception
 	{
@@ -120,7 +153,7 @@ public class OpenApiYamlEditorService
 		// prepare set to hold paths for latest versions of each collection
 		Set<Path> highestVersions = new HashSet<>();
 
-		// iterate over unique collection names and find highest version for each
+		// iterate over set of unique API collection names and find highest version for each
 		for (String collectionName : uniqueCollectionNames)
 		{
 			// get set of paths containing this collection name
@@ -131,14 +164,14 @@ public class OpenApiYamlEditorService
 			                                              .collect(Collectors.toSet());
 
 			// search this set to find the highest version value
-			Integer highestVersion = collectionPaths.stream()
-			                                        .mapToInt(path -> Integer.valueOf(
-					                                        path.getName(path.getNameCount() - 1)
-					                                            .toString()
-					                                            .replaceAll("[^\\d]", ""))
-			                                        )
-			                                        .max()
-			                                        .orElseThrow();
+			int highestVersion = collectionPaths.stream()
+			                                    .mapToInt(path -> Integer.parseInt(
+					                                    path.getName(path.getNameCount() - 1)
+					                                        .toString()
+					                                        .replaceAll("[^\\d]", ""))
+			                                    )
+			                                    .max()
+			                                    .orElseThrow();
 
 			// get the path corresponding to this collection name and version number
 			Path collectionPathHighestVersion =
