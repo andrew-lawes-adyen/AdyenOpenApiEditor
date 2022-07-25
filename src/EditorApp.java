@@ -14,6 +14,8 @@ public class EditorApp
             throws Exception
     {
 
+        System.out.println("AdyenOpenApiEditor starting");
+
         try
         {
             // load config variables from config.properties file
@@ -53,6 +55,8 @@ public class EditorApp
             OpenApiYamlEditorService editorService = new OpenApiYamlEditorService(pathToInputDirectory,
                     pathToOutputDirectory, copyLatestVersions);
 
+            System.out.println("AdyenOpenApiEditor started successfully");
+
             // run editor service
             editorService.run();
         }
@@ -61,5 +65,7 @@ public class EditorApp
             ex.printStackTrace();
             throw ex;
         }
+
+        System.out.println("AdyenOpenApiEditor finished");
     }
 }
