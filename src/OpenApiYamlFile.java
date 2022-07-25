@@ -150,7 +150,7 @@ public class OpenApiYamlFile
                 .get(0);
 
         // create updated line by appending version number to collection title within square brackets
-        String titleUpdated = titleOriginal.substring(0, titleOriginal.length() - 1) + " [v" + version + "]'";
+        String titleUpdated = titleOriginal.substring(0, titleOriginal.length() - 1) + " [v" + version + "]";
 
         // overwrite line containing collection title
         this.lines.set(this.lines.indexOf(titleOriginal), titleUpdated);
