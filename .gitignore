@@ -2,3 +2,4 @@
 .DS_Store
 /out/
 .idea/workspace.xml
+config.properties

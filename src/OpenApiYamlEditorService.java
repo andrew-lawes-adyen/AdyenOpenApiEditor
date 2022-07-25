@@ -9,189 +9,191 @@ import java.util.stream.Collectors;
  */
 public class OpenApiYamlEditorService
 {
-	// region INSTANCE VARIABLES
+    // region INSTANCE VARIABLES
 
-	// path to directory containing YAML files
-	private final Path pathToYamlDirectory;
+    // path to directory containing input .yaml files
+    private final Path pathToInputDirectory;
 
-	// set of paths to all .yaml files identified in directory
-	private Set<Path> yamlFilePaths;
+    // path to directory to hold output .yaml files
+    private final Path pathToOutputDirectory;
 
-	// flag to determine if latest versions of API collections should be copied to a target directory
-	private final boolean copyLatestVersions;
+    // path to directory to hold latest versions of output files
+    private final Path pathToLatestVersionsSubdirectory;
 
-	// target directory to copy latest versions of API collections to
-	private final Path pathToLatestVersionsDirectory;
+    // flag to determine if latest versions of API collections should be copied to a target subdirectory
+    private final boolean copyLatestVersions;
 
-	// endregion
+    // set of paths to all .yaml files identified in input directory
+    private Set<Path> inputYamlFilePaths;
 
-	/**
-	 * Public constructor. Includes validation to check that directory paths are valid and throws exception if any
-	 * issues are found.
-	 * fails.
-	 *
-	 * @param yamlDirectory           String containing path to directory containing .yaml files
-	 * @param latestVersionsDirectory String containing path to directory used to store latest API collections
-	 *                                (optional - may be null)
-	 */
-	public OpenApiYamlEditorService(String yamlDirectory, String latestVersionsDirectory)
-			throws Exception
-	{
-		// validate mandatory input for path to directory containing .yaml files
-		try
-		{
-			this.pathToYamlDirectory = validateAndGetPathToDirectory(yamlDirectory);
-		}
-		catch (Exception ex)
-		{
-			throw new Exception(
-					"Path to directory containing YAML files was invalid - please recheck. Value supplied was " + yamlDirectory);
-		}
+    // endregion
 
-		// validate optional input for target directory to copy latest API collections to (if supplied)
-		if (latestVersionsDirectory != null && !latestVersionsDirectory.isEmpty())
-		{
-			try
-			{
-				this.pathToLatestVersionsDirectory = validateAndGetPathToDirectory(latestVersionsDirectory);
-				this.copyLatestVersions = true;
-			}
-			catch (Exception ex)
-			{
-				throw new Exception(
-						"Path to subset copy directory was invalid - please recheck. Value supplied was " + latestVersionsDirectory);
-			}
-		} else
-		{
-			this.pathToLatestVersionsDirectory = null;
-			this.copyLatestVersions = false;
-		}
-	}
+    /**
+     * Public constructor. Includes validation to check that directory paths are valid.
+     *
+     * @param pathToInputDirectory  String containing path to input directory containing source .yaml files
+     * @param pathToOutputDirectory String containing path to output directory to store edited .yaml files
+     * @param copyLatestVersions    boolean to control creation of subdirectory containing only latest versions
+     * @throws Exception
+     */
+    public OpenApiYamlEditorService(String pathToInputDirectory, String pathToOutputDirectory, boolean copyLatestVersions)
+            throws Exception
+    {
+        // set non-validated input parameters
+        this.copyLatestVersions = copyLatestVersions;
 
-	/**
-	 * Method to initiate and control overall flow of execution.
-	 */
-	public void run()
-			throws Exception
-	{
-		// get set of paths to YAML files in directory (includes validation checks)
-		getPathsToYamlFiles();
+        // validate other input parameters
+        try
+        {
+            this.pathToInputDirectory = validateAndGetPathToDirectory(pathToInputDirectory);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(
+                    "Path to input directory was invalid - please recheck. Value supplied was " + pathToInputDirectory);
+        }
 
-		// iterate over set of paths
-		for (Path yamlFilePath : yamlFilePaths)
-		{
-			// create YAML file object from next path
-			OpenApiYamlFile file = new OpenApiYamlFile(yamlFilePath);
+        try
+        {
+            this.pathToOutputDirectory = validateAndGetPathToDirectory(pathToOutputDirectory);
+            this.pathToLatestVersionsSubdirectory = validateAndGetPathToDirectory(pathToOutputDirectory + "/_latest");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(
+                    "Path to output directory was invalid - please recheck. Value supplied was " + pathToOutputDirectory);
+        }
+    }
 
-			// amend file
-			file.amend();
-		}
+    /**
+     * Method to initiate and control overall flow of execution.
+     */
+    public void run()
+            throws Exception
+    {
+        // get set of paths to YAML files in directory (includes validation checks)
+        this.inputYamlFilePaths = getPathsToYamlFiles(this.pathToInputDirectory);
 
-		// copy subset of latest files if requested
-		if (this.copyLatestVersions)
-		{
-			copyLatestFiles();
-		}
-	}
+        // iterate over set of paths
+        for (Path yamlFilePath : inputYamlFilePaths)
+        {
+            // create YAML file object from next path
+            OpenApiYamlFile file = new OpenApiYamlFile(yamlFilePath, this.pathToOutputDirectory);
 
-	/**
-	 * Method to validate a string containing a directory and return a path object for that directory.
-	 *
-	 * @param directory String containing directory
-	 * @return Path to directory
-	 */
-	private Path validateAndGetPathToDirectory(String directory)
-			throws Exception
-	{
+            // amend file and save to output directory
+            file.amendAndSave();
+        }
 
-		// create path object for supplied string - throws exception automatically if this doesn't map to a valid
-		// filesystem object
-		Path pathToDirectory = Path.of(directory);
+        // copy subset of latest files if requested
+        if (this.copyLatestVersions)
+        {
+            copyLatestFiles();
+        }
+    }
 
-		// confirm this path objects references a directory
-		if (!Files.isDirectory(pathToDirectory))
-		{
-			throw new Exception();
-		}
+    /**
+     * Method to validate a string containing a directory and return a path object for that directory.
+     *
+     * @param directory String containing directory
+     * @return Path to directory
+     */
+    private Path validateAndGetPathToDirectory(String directory)
+            throws Exception
+    {
 
-		return pathToDirectory;
-	}
+        // create path object for supplied string - throws exception automatically if this doesn't map to a valid
+        // filesystem object
+        Path pathToDirectory = Path.of(directory);
 
-	/**
-	 * Method to get a set of paths to all YAML files identified within a directory. Throws exception if no YAML files
-	 * are found.
-	 */
-	private void getPathsToYamlFiles()
-			throws Exception
-	{
-		// get set of paths to YAML files in directory
-		this.yamlFilePaths = Files.list(this.pathToYamlDirectory)
-		                          .filter(path -> path.toString()
-		                                              .endsWith(".yaml"))
-		                          .collect(Collectors.toSet());
+        // confirm this path objects references a directory
+        if (!Files.isDirectory(pathToDirectory))
+        {
+            throw new Exception("Value supplied does not reference a directory: " + directory);
+        }
 
-		// validation - throw exception if no YAML files found
-		if (this.yamlFilePaths.size() == 0)
-		{
-			throw new Exception("No .yaml files were found in this directory - please recheck and rerun");
-		}
-	}
+        return pathToDirectory;
+    }
 
-	/**
-	 * Method to identify latest version of each API collection and copy just these files to a specified directory.
-	 */
-	private void copyLatestFiles()
-			throws Exception
-	{
-		// create set of unique API collection names by removing "-vXX.yaml" from the end of the path
-		Set<String> uniqueCollectionNames = this.yamlFilePaths.stream()
-		                                                      .map(path -> path.getName(path.getNameCount() - 1)
-		                                                                       .toString()
-		                                                                       .replaceAll("(-v)\\d+(.yaml)", ""))
-		                                                      .collect(Collectors.toSet());
+    /**
+     * Method to get a set of paths to all YAML files identified within a directory. Throws exception if no YAML files
+     * are found.
+     */
+    private Set<Path> getPathsToYamlFiles(Path directory)
+            throws Exception
+    {
+        // get set of paths to YAML files in directory
+        Set<Path> yamlFilePaths = Files.list(directory)
+                .filter(path -> path.toString()
+                        .endsWith(".yaml"))
+                .collect(Collectors.toSet());
 
-		// prepare set to hold paths for latest versions of each collection
-		Set<Path> highestVersions = new HashSet<>();
+        // validation - throw exception if no YAML files found
+        if (yamlFilePaths.size() == 0)
+        {
+            throw new Exception("No .yaml files were found in this directory: " + pathToLatestVersionsSubdirectory.toString());
+        }
 
-		// iterate over set of unique API collection names and find highest version for each
-		for (String collectionName : uniqueCollectionNames)
-		{
-			// get set of paths containing this collection name
-			Set<Path> collectionPaths = this.yamlFilePaths.stream()
-			                                              .filter(path -> path.getName(path.getNameCount() - 1)
-			                                                                  .toString()
-			                                                                  .startsWith(collectionName))
-			                                              .collect(Collectors.toSet());
+        return yamlFilePaths;
+    }
 
-			// search this set to find the highest version value
-			int highestVersion = collectionPaths.stream()
-			                                    .mapToInt(path -> Integer.parseInt(
-					                                    path.getName(path.getNameCount() - 1)
-					                                        .toString()
-					                                        .replaceAll("[^\\d]", ""))
-			                                    )
-			                                    .max()
-			                                    .orElseThrow();
+    /**
+     * Method to identify latest version of each API collection and copy just these files to a specified directory.
+     */
+    private void copyLatestFiles()
+            throws Exception
+    {
+        // generate set of output files
+        Set<Path> outputYamlFilePaths = getPathsToYamlFiles(this.pathToOutputDirectory);
 
-			// get the path corresponding to this collection name and version number
-			Path collectionPathHighestVersion =
-					collectionPaths.stream()
-					               .filter(path -> path.getName(path.getNameCount() - 1)
-					                                   .toString()
-					                                   .contains("-v" + highestVersion))
-					               .collect(Collectors.toList())
-					               .get(0);
+        // create set of unique API collection names by removing "-vXX.yaml" from the end of the path
+        Set<String> uniqueCollectionNames = outputYamlFilePaths.stream()
+                .map(path -> path.getName(path.getNameCount() - 1)
+                        .toString()
+                        .replaceAll("(-v)\\d+(.yaml)", ""))
+                .collect(Collectors.toSet());
 
-			// add this path to the set of paths to be copied
-			highestVersions.add(collectionPathHighestVersion);
-		}
+        // prepare set to hold paths for latest versions of each collection
+        Set<Path> highestVersions = new HashSet<>();
 
-		// copy all files to latest versions directory
-		for (Path pathToHighestVersionFile : highestVersions)
-		{
-			Files.copy(pathToHighestVersionFile,
-			           this.pathToLatestVersionsDirectory.resolve(pathToHighestVersionFile.getFileName()),
-			           StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
-		}
-	}
+        // iterate over set of unique API collection names and find highest version for each
+        for (String collectionName : uniqueCollectionNames)
+        {
+            // get set of paths containing this collection name
+            Set<Path> collectionPaths = outputYamlFilePaths.stream()
+                    .filter(path -> path.getName(path.getNameCount() - 1)
+                            .toString()
+                            .startsWith(collectionName))
+                    .collect(Collectors.toSet());
+
+            // search this set to find the highest version value
+            int highestVersion = collectionPaths.stream()
+                    .mapToInt(path -> Integer.parseInt(
+                            path.getName(path.getNameCount() - 1)
+                                    .toString()
+                                    .replaceAll("[^\\d]", ""))
+                    )
+                    .max()
+                    .orElseThrow();
+
+            // get the path corresponding to this collection name and version number
+            Path collectionPathHighestVersion =
+                    collectionPaths.stream()
+                            .filter(path -> path.getName(path.getNameCount() - 1)
+                                    .toString()
+                                    .contains("-v" + highestVersion))
+                            .collect(Collectors.toList())
+                            .get(0);
+
+            // add this path to the set of paths to be copied
+            highestVersions.add(collectionPathHighestVersion);
+        }
+
+        // copy all files to latest versions subdirectory
+        for (Path pathToHighestVersionFile : highestVersions)
+        {
+            Files.copy(pathToHighestVersionFile,
+                    this.pathToLatestVersionsSubdirectory.resolve(pathToHighestVersionFile.getFileName()),
+                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+        }
+    }
 }
