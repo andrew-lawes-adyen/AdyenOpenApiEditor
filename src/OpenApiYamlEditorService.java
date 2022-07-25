@@ -1,7 +1,8 @@
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -14,11 +15,11 @@ public class OpenApiYamlEditorService
     // path to directory containing input .yaml files
     private final Path pathToInputDirectory;
 
-    // path to directory to hold output .yaml files
-    private final Path pathToOutputDirectory;
+    // path to subdirectory to hold all output files
+    private final Path pathToAllVersionsOutputSubdirectory;
 
     // path to directory to hold latest versions of output files
-    private final Path pathToLatestVersionsSubdirectory;
+    private final Path pathToLatestVersionsOutputSubdirectory;
 
     // flag to determine if latest versions of API collections should be copied to a target subdirectory
     private final boolean copyLatestVersions;
@@ -39,10 +40,10 @@ public class OpenApiYamlEditorService
     public OpenApiYamlEditorService(String pathToInputDirectory, String pathToOutputDirectory, boolean copyLatestVersions)
             throws Exception
     {
-        // set non-validated input parameters
+        // set flag to copy latest versions into a specific subfolder
         this.copyLatestVersions = copyLatestVersions;
 
-        // validate other input parameters
+        // validate input directory
         try
         {
             this.pathToInputDirectory = validateAndGetPathToDirectory(pathToInputDirectory);
@@ -53,15 +54,31 @@ public class OpenApiYamlEditorService
                     "Path to input directory was invalid - please recheck. Value supplied was " + pathToInputDirectory);
         }
 
+        Path outputDirectory = null;
+
+        // validate output directory
         try
         {
-            this.pathToOutputDirectory = validateAndGetPathToDirectory(pathToOutputDirectory);
-            this.pathToLatestVersionsSubdirectory = validateAndGetPathToDirectory(pathToOutputDirectory + "/_latest");
+            outputDirectory = validateAndGetPathToDirectory(pathToOutputDirectory);
         }
         catch (Exception ex)
         {
             throw new Exception(
                     "Path to output directory was invalid - please recheck. Value supplied was " + pathToOutputDirectory);
+        }
+
+        // create output subdirectories
+        try
+        {
+            this.pathToAllVersionsOutputSubdirectory = outputDirectory.resolve("all");
+            this.pathToAllVersionsOutputSubdirectory.toFile().mkdir();
+
+            this.pathToLatestVersionsOutputSubdirectory = outputDirectory.resolve("latest");
+            this.pathToLatestVersionsOutputSubdirectory.toFile().mkdir();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Could not create subdirectory in output folder: " + ex.getMessage());
         }
     }
 
@@ -78,7 +95,7 @@ public class OpenApiYamlEditorService
         for (Path yamlFilePath : inputYamlFilePaths)
         {
             // create YAML file object from next path
-            OpenApiYamlFile file = new OpenApiYamlFile(yamlFilePath, this.pathToOutputDirectory);
+            OpenApiYamlFile file = new OpenApiYamlFile(yamlFilePath, this.pathToAllVersionsOutputSubdirectory);
 
             // amend file and save to output directory
             file.amendAndSave();
@@ -130,7 +147,7 @@ public class OpenApiYamlEditorService
         // validation - throw exception if no YAML files found
         if (yamlFilePaths.size() == 0)
         {
-            throw new Exception("No .yaml files were found in this directory: " + pathToLatestVersionsSubdirectory.toString());
+            throw new Exception("No .yaml files were found in this directory: " + pathToLatestVersionsOutputSubdirectory.toString());
         }
 
         return yamlFilePaths;
@@ -143,7 +160,7 @@ public class OpenApiYamlEditorService
             throws Exception
     {
         // generate set of output files
-        Set<Path> outputYamlFilePaths = getPathsToYamlFiles(this.pathToOutputDirectory);
+        Set<Path> outputYamlFilePaths = getPathsToYamlFiles(this.pathToAllVersionsOutputSubdirectory);
 
         // create set of unique API collection names by removing "-vXX.yaml" from the end of the path
         Set<String> uniqueCollectionNames = outputYamlFilePaths.stream()
@@ -192,7 +209,7 @@ public class OpenApiYamlEditorService
         for (Path pathToHighestVersionFile : highestVersions)
         {
             Files.copy(pathToHighestVersionFile,
-                    this.pathToLatestVersionsSubdirectory.resolve(pathToHighestVersionFile.getFileName()),
+                    this.pathToLatestVersionsOutputSubdirectory.resolve(pathToHighestVersionFile.getFileName()),
                     StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
         }
     }

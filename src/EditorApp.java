@@ -1,5 +1,7 @@
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Properties;
 
 /**
@@ -17,7 +19,24 @@ public class EditorApp
             // load config variables from config.properties file
             Properties props = new Properties();
 
-            try (BufferedInputStream in = new BufferedInputStream(new FileInputStream("src/config.properties")))
+            // assume properties file is being loaded by the JAR
+            String propertiesFile = Paths.get(EditorApp.class.getProtectionDomain().getCodeSource().getLocation()
+                    .toURI()).getParent().resolve("config.properties").toString();
+
+            // if config.properties file can't be found, fallback to checking root folder (during debugging)
+            if (!Files.exists(Paths.get(propertiesFile)))
+            {
+                // reset properties file location
+                propertiesFile = "config.properties";
+
+                // throw exception if it still isn't found
+                if (!Files.exists(Paths.get(propertiesFile)))
+                {
+                    throw new Exception("Could not locate properties file");
+                }
+            }
+
+            try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(propertiesFile)))
             {
                 props.load(in);
             }
