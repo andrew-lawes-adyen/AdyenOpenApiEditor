@@ -10,6 +10,12 @@ import java.util.stream.Collectors;
  */
 public class OpenApiYamlEditorService
 {
+    // region STATIC VARIABLES
+
+    public static final long MILLISECONDS_IN_ONE_HOUR = 3600000;
+
+    // endregion
+
     // region INSTANCE VARIABLES
 
     // path to directory containing input .yaml files
@@ -67,7 +73,7 @@ public class OpenApiYamlEditorService
                     "Path to output directory was invalid - please recheck. Value supplied was " + pathToOutputDirectory);
         }
 
-        // create output subdirectories
+        // ensure output subdirectories exists
         try
         {
             this.pathToAllVersionsOutputSubdirectory = outputDirectory.resolve("all");
@@ -211,6 +217,20 @@ public class OpenApiYamlEditorService
             Files.copy(pathToHighestVersionFile,
                     this.pathToLatestVersionsOutputSubdirectory.resolve(pathToHighestVersionFile.getFileName()),
                     StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+        }
+
+        // get all files in output subdirectory
+        Set<Path> latestYamlFilePaths = getPathsToYamlFiles(this.pathToLatestVersionsOutputSubdirectory);
+
+        // filter only for stale files not updated in last hour
+        Set<Path> staleFilePaths = latestYamlFilePaths.stream()
+                .filter(path -> path.toFile().lastModified() < System.currentTimeMillis() - MILLISECONDS_IN_ONE_HOUR)
+                .collect(Collectors.toSet());
+
+        // delete stale files not updated in last hour
+        for (Path staleFilePath : staleFilePaths)
+        {
+            Files.delete(staleFilePath);
         }
     }
 }
