@@ -1,3 +1,5 @@
+import org.apache.commons.text.WordUtils;
+
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +25,16 @@ public class OpenApiYamlFile
             "security:",
             "  - ApiKeyAuth: []"
     );
+
+    // API title elements
+    public static final String titlePrefix = "  title: ";
+    public static final String titleAdyen = "Adyen ";
+    public static final String titleSuffix = " API";
+
+    public static final String urlPrefix = "- url: https://";
+    public static final String urlRegex = "(?<=- url: https://).+(?=/v\\d+)";
+
+    public static final String versionPrefix = "  version: ";
 
     // endregion
 
@@ -88,14 +100,33 @@ public class OpenApiYamlFile
         // enables use of environment variables to change environment
         try
         {
+            // identify line containing title for this collection
+            String title = this.lines.stream()
+                    .filter(line -> line.startsWith(titlePrefix))
+                    .collect(Collectors.toList())
+                    .get(0);
+
+            // remove unwanted elements from the title and convert to lower case
+            title = title.replace(titlePrefix, "").replace(titleAdyen, "").replace(titleSuffix, "").toLowerCase().trim();
+
+            // convert to capital case
+            title = WordUtils.capitalize(title);
+
+            // remove whitespace
+            title = title.replaceAll("\\s","");
+
+            // convert to variable by adding remaining elements
+            String variable = "{{env.baseUrl." + title + "}}";
+
             // identify line containing URL for this collection
             String urlOriginal = this.lines.stream()
-                    .filter(line -> line.startsWith("- url:"))
+                    .filter(line -> line.startsWith(urlPrefix))
                     .collect(Collectors.toList())
                     .get(0);
 
             // replace hard-coded value with variable
-            String urlUpdated = urlOriginal.replace("test", "{{env}}");
+            // String urlUpdated = urlOriginal.replace("test", "{{env}}");
+            String urlUpdated = urlOriginal.replaceFirst(urlRegex, variable);
 
             // overwrite original line
             this.lines.set(this.lines.indexOf(urlOriginal), urlUpdated);
@@ -136,7 +167,7 @@ public class OpenApiYamlFile
     {
         // get line containing collection version
         String versionLine = this.lines.stream()
-                .filter(line -> line.startsWith("  version:"))
+                .filter(line -> line.startsWith(versionPrefix))
                 .collect(Collectors.toList())
                 .get(0);
 
@@ -145,12 +176,12 @@ public class OpenApiYamlFile
 
         // get line containing collection title
         String titleOriginal = this.lines.stream()
-                .filter(line -> line.startsWith("  title:"))
+                .filter(line -> line.startsWith(titlePrefix))
                 .collect(Collectors.toList())
                 .get(0);
 
-        // create updated line by appending version number to collection title within square brackets
-        String titleUpdated = titleOriginal.substring(0, titleOriginal.length() - 1) + " [v" + version + "]";
+        // amend title: strip leading "Adyen" if found; strip trailing "API"; prefix with "Adyen OpenAPI"; suffix with version number
+        String titleUpdated = titlePrefix + "OpenAPI - " + titleOriginal.substring(9).replace("Adyen ","").replace(" API","") + " [v" + version + "]";
 
         // overwrite line containing collection title
         this.lines.set(this.lines.indexOf(titleOriginal), titleUpdated);
