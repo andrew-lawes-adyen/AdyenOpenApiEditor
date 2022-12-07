@@ -1,11 +1,12 @@
 <component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="AdyenOpenApiEditor:jar">
+  <artifact build-on-make="true" name="AdyenOpenApiEditor:jar">
     <output-path>$PROJECT_DIR$/out/artifacts/AdyenOpenApiEditor_jar</output-path>
-    <root id="archive" name="AdyenOpenApiEditor.jar">
-      <element id="directory" name="META-INF">
-        <element id="file-copy" path="$PROJECT_DIR$/out/artifacts/META-INF/MANIFEST.MF" />
+    <root id="root">
+      <element id="archive" name="AdyenOpenApiEditor.jar">
+        <element id="directory" name="META-INF">
+          <element id="file-copy" path="$PROJECT_DIR$/META-INF/MANIFEST.MF" />
+        </element>
       </element>
-      <element id="module-output" name="AdyenOpenApiEditor" />
     </root>
   </artifact>
 </component>
